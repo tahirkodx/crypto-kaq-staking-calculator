@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KAQ Staking Calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .active-tab {
+      background-color: #6366f1 !important; /* Indigo */
+      color: white;
+    }
+    table {
+      font-size: 0.875rem; /* Smaller font for compact design */
+    }
+    th, td {
+      padding: 0.5rem; /* Reduce padding for compact layout */
+    }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans">
+  <div class="container mx-auto p-8">
+    <h1 class="text-3xl font-bold text-center mb-6">KAQ Staking Calculator</h1>
+    <div class="bg-white rounded-lg shadow-md p-6 max-w-md mx-auto">
+      <label for="kaqInput" class="block text-lg font-semibold mb-2">Enter KAQ Tokens to Stake:</label>
+      <input 
+        id="kaqInput" 
+        type="number" 
+        class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-indigo-300" 
+        placeholder="Enter KAQ tokens" 
+        required>
+      <button 
+        onclick="calculateRewards()" 
+        class="mt-4 bg-indigo-500 text-white py-2 px-4 rounded-lg w-full hover:bg-indigo-600 focus:outline-none">
+        Calculate Rewards
+      </button>
+    </div>
+
+    <div id="resultTable" class="mt-8 hidden">
+      <h2 class="text-2xl font-semibold text-center mb-4">Staking Summary</h2>
+      <table class="table-auto w-full border-collapse bg-white rounded-lg shadow-md">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="border">Pool</th>
+            <th class="border">APR</th>
+            <th class="border">Lock Period</th>
+            <th class="border">QUEST (Annual)</th>
+            <th class="border">QUEST (Quarterly)</th>
+            <th class="border">QUEST (Monthly)</th>
+            <th class="border">QUEST (Daily)</th>
+          </tr>
+        </thead>
+        <tbody id="resultBody">
+          <!-- Results will be dynamically inserted here -->
+        </tbody>
+      </table>
+    </div>
+
+    <div id="flexibleBreakdown" class="mt-8 hidden">
+      <h2 class="text-2xl font-semibold text-center mb-4">Earnings Breakdown</h2>
+      <div class="flex flex-wrap justify-center gap-4 mb-4">
+        <button onclick="showEarnings('Flexible', 1)" class="tab-button bg-gray-200 py-2 px-4 rounded-lg">Flexible - 24 Hours</button>
+        <button onclick="showEarnings('Flexible', 7)" class="tab-button bg-gray-200 py-2 px-4 rounded-lg">Flexible - 7 Days</button>
+        <button onclick="showEarnings('Fixed30d', 7)" class="tab-button bg-gray-200 py-2 px-4 rounded-lg">Fixed 30d - 7 Days</button>
+        <button onclick="showEarnings('Fixed90d', 7)" class="tab-button bg-gray-200 py-2 px-4 rounded-lg">Fixed 90d - 7 Days</button>
+      </div>
+      <table class="table-auto w-full border-collapse bg-white rounded-lg shadow-md">
+        <thead id="breakdownHeader" class="bg-gray-200">
+          <!-- Dynamic header will be inserted here -->
+        </thead>
+        <tbody id="breakdownBody">
+          <!-- Breakdown data will be dynamically inserted here -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const pools = {
+      Flexible: { apr: 5, dailyFactor: 1 / 365 },
+      Fixed30d: { apr: 12, dailyFactor: 1 / 365 },
+      Fixed90d: { apr: 20, dailyFactor: 1 / 365 }
+    };
+
+    function calculateRewards() {
+      const kaq = parseFloat(document.getElementById('kaqInput').value);
+
+      if (isNaN(kaq) || kaq <= 0) {
+        alert('Please enter a valid number of KAQ tokens!');
+        return;
+      }
+
+      const resultBody = document.getElementById('resultBody');
+      resultBody.innerHTML = ''; // Clear previous results
+
+      Object.keys(pools).forEach(poolName => {
+        const pool = pools[poolName];
+        const annual = (kaq * pool.apr) / 100;
+        const daily = annual * pool.dailyFactor;
+        const quarterly = annual / 4;
+        const monthly = annual / 12;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="border text-center">${poolName}</td>
+          <td class="border text-center">${pool.apr}%</td>
+          <td class="border text-center">${poolName === 'Flexible' ? 'None' : poolName === 'Fixed30d' ? '30 days' : '90 days'}</td>
+          <td class="border text-center">${annual.toFixed(2)}</td>
+          <td class="border text-center">${quarterly.toFixed(2)}</td>
+          <td class="border text-center">${monthly.toFixed(2)}</td>
+          <td class="border text-center">${daily.toFixed(4)}</td>
+        `;
+
+        resultBody.appendChild(row);
+
+        if (poolName === 'Flexible') {
+          showEarnings('Flexible', 1); // Default to 24-hour breakdown
+        }
+      });
+
+      document.getElementById('resultTable').classList.remove('hidden');
+      document.getElementById('flexibleBreakdown').classList.remove('hidden');
+    }
+
+    function showEarnings(poolName, days) {
+      const breakdownHeader = document.getElementById('breakdownHeader');
+      const breakdownBody = document.getElementById('breakdownBody');
+      breakdownBody.innerHTML = ''; // Clear previous breakdown
+
+      const totalPeriods = days === 1 ? 24 : days; // Hours for 1 day, days otherwise
+      const earningUnit = days === 1 ? 'Hour' : 'Day';
+      const dailyEarning = (pools[poolName].apr / 100 / 365) * parseFloat(document.getElementById('kaqInput').value);
+
+      // Update header dynamically
+      breakdownHeader.innerHTML = `
+        <tr>
+          <th class="border">${earningUnit}</th>
+          <th class="border">QUEST Earned</th>
+        </tr>
+      `;
+
+      for (let i = 1; i <= totalPeriods; i++) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="border text-center">${i}</td>
+          <td class="border text-center">${(i * (dailyEarning / (days === 1 ? 24 : 1))).toFixed(6)}</td>
+        `;
+        breakdownBody.appendChild(row);
+      }
+
+      // Highlight active tab
+      document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active-tab'));
+      document.querySelector(`.tab-button[onclick="showEarnings('${poolName}', ${days})"]`).classList.add('active-tab');
+    }
+  </script>
+</body>
+</html>
